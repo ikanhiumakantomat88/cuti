@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <!-- Wajib agar responsive di HP -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0"> 
-    <title>Cuti Online</title>
-    <meta name="robots" content="noindex">
+    <title>Sistem Cuti Pegawai</title>
+    
     <!-- Library CSS & JS -->
     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js'></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -92,6 +92,67 @@
                 <button onclick="document.getElementById('announcement-modal').classList.add('hidden')" class="px-4 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-gray-700 transition">Batal</button>
                 <button onclick="saveAnnouncement()" class="bg-yellow-600 hover:bg-yellow-500 text-white px-4 py-2 rounded-lg font-bold shadow-lg shadow-yellow-600/20 transition">Simpan</button>
             </div>
+        </div>
+    </div>
+
+    <!-- MODAL PROSES PENGAJUAN (BARU - LEBIH RAPI) -->
+    <div id="process-modal" class="hidden fixed inset-0 bg-black/80 z-50 flex items-center justify-center backdrop-blur-sm px-4">
+        <div class="bg-gray-800 w-full max-w-md p-6 rounded-xl shadow-2xl border border-gray-700 transform transition-all scale-100">
+            <h3 class="text-xl font-bold text-white mb-4 flex items-center border-b border-gray-700 pb-3">
+                <svg class="w-6 h-6 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                Tinjau Pengajuan
+            </h3>
+            
+            <div class="space-y-4 mb-6">
+                <!-- Info Pegawai -->
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-xs text-gray-400 uppercase tracking-wide">Pegawai</p>
+                        <p id="modal-name" class="font-bold text-white text-lg">-</p>
+                        <p id="modal-div" class="text-xs text-blue-300">-</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-xs text-gray-400 uppercase tracking-wide">Tipe Cuti</p>
+                        <span id="modal-type" class="inline-block mt-1 px-2 py-1 rounded bg-blue-500/20 text-blue-300 text-xs font-bold border border-blue-500/30">-</span>
+                    </div>
+                </div>
+                
+                <!-- Detail Tanggal -->
+                <div class="bg-gray-700/30 p-3 rounded-lg border border-gray-600/50">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-xs text-gray-400 uppercase">Periode</span>
+                        <span id="modal-days" class="text-xs font-bold text-yellow-400">- Hari</span>
+                    </div>
+                    <p id="modal-date" class="font-medium text-white text-sm">-</p>
+                </div>
+
+                <!-- Alasan -->
+                <div>
+                    <p class="text-xs text-gray-400 uppercase tracking-wide mb-1">Alasan</p>
+                    <div class="bg-gray-700/30 p-3 rounded-lg border border-gray-600/50">
+                        <p id="modal-reason" class="text-sm text-gray-200 italic">"-"</p>
+                    </div>
+                </div>
+
+                <!-- Input Catatan Admin -->
+                <div>
+                    <label class="block text-xs font-bold text-gray-400 uppercase mb-2">Catatan Manager / Alasan Penolakan</label>
+                    <textarea id="modal-admin-reason" rows="2" class="w-full bg-gray-700 border border-gray-600 text-white p-3 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition placeholder-gray-500 text-sm" placeholder="Tulis catatan (wajib jika menolak)..."></textarea>
+                </div>
+            </div>
+
+            <!-- Tombol Aksi -->
+            <div class="flex gap-3">
+                <button onclick="processRequestAction('Rejected')" class="flex-1 bg-red-500/10 hover:bg-red-600 text-red-400 hover:text-white border border-red-500/50 py-2.5 rounded-lg font-bold transition flex items-center justify-center group">
+                    <svg class="w-4 h-4 mr-2 group-hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    Tolak
+                </button>
+                <button onclick="processRequestAction('Approved')" class="flex-1 bg-green-600 hover:bg-green-500 text-white py-2.5 rounded-lg font-bold shadow-lg shadow-green-600/20 transition flex items-center justify-center">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                    Terima
+                </button>
+            </div>
+            <button onclick="closeProcessModal()" class="w-full mt-4 text-xs text-gray-500 hover:text-gray-300 underline text-center">Batal / Kembali</button>
         </div>
     </div>
 
@@ -353,29 +414,12 @@
         let calendar = null;
         let allRequestsData = []; 
         let clockInterval = null; 
+        let selectedRequestId = null; // ID Request yang sedang diproses di modal
         const SESSION_KEY = 'cuti_app_session'; 
         const SESSION_TIMEOUT = 12 * 60 * 60 * 1000; 
 
         // --- DATABASE LIBUR INDONESIA (2025-2028) ---
         const INDONESIAN_HOLIDAYS = {
-            // 2025
-            "2025-01-01": "Tahun Baru Masehi",
-            "2025-01-27": "Isra Mikraj Nabi Muhammad SAW",
-            "2025-01-29": "Tahun Baru Imlek 2576 Kongzili",
-            "2025-03-29": "Hari Suci Nyepi Tahun Baru Saka 1947",
-            "2025-03-31": "Idul Fitri 1446 H",
-            "2025-04-01": "Idul Fitri 1446 H",
-            "2025-04-18": "Wafat Yesus Kristus",
-            "2025-05-01": "Hari Buruh Internasional",
-            "2025-05-12": "Hari Raya Waisak 2569 BE",
-            "2025-05-29": "Kenaikan Yesus Kristus",
-            "2025-06-01": "Hari Lahir Pancasila",
-            "2025-06-06": "Idul Adha 1446 H",
-            "2025-06-27": "Tahun Baru Islam 1447 H",
-            "2025-08-17": "Hari Kemerdekaan RI",
-            "2025-09-05": "Maulid Nabi Muhammad SAW",
-            "2025-12-25": "Hari Raya Natal",
-            
             // 2026
             "2026-01-01": "Tahun Baru Masehi",
             "2026-01-16": "Isra Mikraj Nabi Muhammad SAW",
@@ -810,29 +854,83 @@
             }
         }
 
-        async function updateRequest(id, status) {
-            const text = status === 'Approved' ? 'TERIMA' : 'TOLAK';
-            let adminReason = ""; 
+        // --- NEW MODAL LOGIC FOR APPROVAL ---
+        
+        function openProcessModal(id) {
+            const req = allRequestsData.find(r => r.id == id);
+            if (!req) return;
+
+            selectedRequestId = id; // Simpan ID untuk diproses nanti
+
+            // Extract Type & Reason
+            const typeMatch = req.reason.match(/^\[(.*?)\]/);
+            const type = typeMatch ? typeMatch[1] : 'Umum';
+            const cleanReason = req.reason.replace(/^\[.*?\]\s*/, '');
             
-            if (status === 'Approved') {
-                const req = allRequestsData.find(r => r.id == id);
-                if (req) {
-                    const limitCheck = checkLeaveLimit(req.start.split('T')[0], req.end.split('T')[0]);
-                    if (limitCheck.overflow) {
-                        const confirmOverflow = confirm(
-                            `PERINGATAN: Tanggal ${limitCheck.date} sudah ada ${limitCheck.count} pegawai yang cuti.\n\n` +
-                            `Apakah Anda yakin tetap ingin menyetujui (Approve) permintaan ini?`
-                        );
-                        if (!confirmOverflow) return; 
-                    }
-                }
-            } else {
-                adminReason = prompt("Masukkan alasan penolakan (Opsional):");
-                if (adminReason === null) return; 
-            }
-            await callAPI({ action: 'updateStatus', id: id, status: status, adminReason: adminReason });
-            loadData();
+            // Calculate Days
+            const days = calculateWorkingDays(req.start.split('T')[0], req.end.split('T')[0]);
+
+            // Populate Modal
+            document.getElementById('modal-name').innerText = req.realName || req.username;
+            document.getElementById('modal-div').innerText = req.division || '-';
+            document.getElementById('modal-type').innerText = type;
+            document.getElementById('modal-days').innerText = `${days} Hari`;
+            document.getElementById('modal-date').innerText = `${req.start.substring(0,10)} s/d ${req.end.substring(0,10)}`;
+            document.getElementById('modal-reason').innerText = `"${cleanReason}"`;
+            
+            // Reset input
+            document.getElementById('modal-admin-reason').value = "";
+
+            // Show Modal
+            document.getElementById('process-modal').classList.remove('hidden');
         }
+
+        function closeProcessModal() {
+            document.getElementById('process-modal').classList.add('hidden');
+            selectedRequestId = null;
+        }
+
+        async function processRequestAction(status) {
+            if (!selectedRequestId) return;
+
+            const adminReason = document.getElementById('modal-admin-reason').value.trim();
+
+            // Validasi: Jika Reject, wajib ada alasan
+            if (status === 'Rejected' && !adminReason) {
+                alert("Wajib mengisi alasan penolakan!");
+                return;
+            }
+
+            // Jika Approve tapi ada overflow quota, tanya dulu (opsional logic, di sini simplified)
+            if (status === 'Approved') {
+                const req = allRequestsData.find(r => r.id == selectedRequestId);
+                const limitCheck = checkLeaveLimit(req.start.split('T')[0], req.end.split('T')[0]);
+                if (limitCheck.overflow) {
+                    const confirmOverflow = confirm(
+                        `PERINGATAN: Tanggal ${limitCheck.date} sudah ada ${limitCheck.count} pegawai yang cuti.\n\n` +
+                        `Lanjutkan approval?`
+                    );
+                    if (!confirmOverflow) return; 
+                }
+            }
+
+            // Call API
+            const res = await callAPI({ 
+                action: 'updateStatus', 
+                id: selectedRequestId, 
+                status: status, 
+                adminReason: adminReason 
+            });
+
+            if (res && res.success) {
+                closeProcessModal();
+                loadData();
+            } else {
+                alert("Gagal memproses pengajuan.");
+            }
+        }
+
+        // (Fungsi lama updateRequest digantikan oleh processRequestAction via modal)
 
         async function loadData() {
             const res = await callAPI({ action: 'getRequests' });
@@ -1101,12 +1199,9 @@
                         <div class="text-sm text-gray-300 mb-4 bg-gray-800 p-2.5 rounded border border-gray-600 italic">
                             "${cleanReason}"
                         </div>
-                        <div class="grid grid-cols-2 gap-3">
-                            <button onclick="updateRequest(${r.id}, 'Approved')" class="bg-green-600 hover:bg-green-500 text-white px-3 py-2 rounded-lg text-xs font-bold transition shadow-lg shadow-green-900/20 flex items-center justify-center">
-                                ✓ Terima
-                            </button>
-                            <button onclick="updateRequest(${r.id}, 'Rejected')" class="bg-red-600 hover:bg-red-500 text-white px-3 py-2 rounded-lg text-xs font-bold transition shadow-lg shadow-red-900/20 flex items-center justify-center">
-                                ✕ Tolak
+                        <div class="grid grid-cols-1">
+                            <button onclick="openProcessModal(${r.id})" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-2 rounded-lg text-xs font-bold transition shadow-lg shadow-blue-900/20 flex items-center justify-center">
+                                🔍 Tinjau Pengajuan
                             </button>
                         </div>
                     </div>
