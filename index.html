@@ -66,7 +66,7 @@
     <!-- KONFIGURASI API -->
     <script>
         // PENTING: Ganti URL di bawah ini dengan URL Web App Google Script Anda
-        const API_URL = "https://script.google.com/macros/s/AKfycbx7BSzqFufh0CTKhggK_mRjGl_iTvYS7JaNwheHvPmr0TVJiKt6hQ8Mzz7hA_7_Fhz46g/exec"; 
+        const API_URL = "https://script.google.com/macros/s/AKfycbxPkBHEbxXzGwjx4xviEaxGcRz5lsx6drMRU0uQ4OBM0oxsEuN0LH9fNgot3nayI4kWBQ/exec"; 
     </script>
 
     <!-- LOADING OVERLAY (Muncul saat proses data) -->
@@ -205,14 +205,31 @@
                             Ajukan Cuti
                         </h3>
                         <div class="space-y-4">
+                            <!-- NEW: Leave Type Selector -->
+                            <div>
+                                <label class="text-xs font-semibold text-gray-400 uppercase">Tipe Cuti</label>
+                                <select id="leave-type" class="w-full mt-1 bg-gray-700 border border-gray-600 text-white p-2.5 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition">
+                                    <option value="Tahunan">Cuti Tahunan</option>
+                                    <option value="Sakit">Sakit (Sick Leave)</option>
+                                    <option value="Izin">Izin Khusus</option>
+                                    <option value="Unpaid">Unpaid Leave</option>
+                                </select>
+                            </div>
                             <div>
                                 <label class="text-xs font-semibold text-gray-400 uppercase">Mulai Tanggal</label>
-                                <input id="start-date" type="date" class="w-full mt-1 bg-gray-700 border border-gray-600 text-white p-2.5 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition [color-scheme:dark]">
+                                <input id="start-date" type="date" onchange="updateDurationDisplay()" class="w-full mt-1 bg-gray-700 border border-gray-600 text-white p-2.5 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition [color-scheme:dark]">
                             </div>
                             <div>
                                 <label class="text-xs font-semibold text-gray-400 uppercase">Sampai Tanggal</label>
-                                <input id="end-date" type="date" class="w-full mt-1 bg-gray-700 border border-gray-600 text-white p-2.5 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition [color-scheme:dark]">
+                                <input id="end-date" type="date" onchange="updateDurationDisplay()" class="w-full mt-1 bg-gray-700 border border-gray-600 text-white p-2.5 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition [color-scheme:dark]">
                             </div>
+                            
+                            <!-- NEW: Duration Calculation Display -->
+                            <div id="duration-box" class="hidden bg-blue-500/10 border border-blue-500/30 rounded-lg p-3">
+                                <p class="text-xs text-blue-300">Total Hari Kerja (Tanpa Weekend/Libur):</p>
+                                <p id="duration-text" class="text-lg font-bold text-white">0 Hari</p>
+                            </div>
+
                             <div>
                                 <label class="text-xs font-semibold text-gray-400 uppercase">Alasan</label>
                                 <input id="reason" type="text" placeholder="Contoh: Acara Keluarga" class="w-full mt-1 bg-gray-700 border border-gray-600 text-white p-2.5 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition placeholder-gray-500">
@@ -258,9 +275,42 @@
         <!-- VIEW: REPORT (Manager Only) -->
         <div id="report-content" class="hidden">
             <div class="bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-700">
-                <div class="flex justify-between items-center mb-6 border-b border-gray-700 pb-4">
-                    <h2 class="text-xl font-bold text-white">Laporan Rekapitulasi Cuti (Disetujui)</h2>
-                    <button onclick="toggleReportView()" class="text-sm text-gray-400 hover:text-white underline">Kembali ke Dashboard</button>
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 border-b border-gray-700 pb-4 gap-4">
+                    <div>
+                        <h2 class="text-xl font-bold text-white">Laporan Rekapitulasi Cuti</h2>
+                        <p class="text-xs text-gray-400 mt-1">Filter data per bulan/tahun untuk melihat sisa kuota.</p>
+                    </div>
+                    
+                    <div class="flex flex-col md:flex-row gap-3 w-full md:w-auto">
+                        <!-- FILTER BULAN -->
+                        <select id="report-month" onchange="filterReport()" class="bg-gray-700 border border-gray-600 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5">
+                            <option value="all">Semua Bulan (Tahunan)</option>
+                            <option value="0">Januari</option>
+                            <option value="1">Februari</option>
+                            <option value="2">Maret</option>
+                            <option value="3">April</option>
+                            <option value="4">Mei</option>
+                            <option value="5">Juni</option>
+                            <option value="6">Juli</option>
+                            <option value="7">Agustus</option>
+                            <option value="8">September</option>
+                            <option value="9">Oktober</option>
+                            <option value="10">November</option>
+                            <option value="11">Desember</option>
+                        </select>
+                        
+                        <!-- FILTER TAHUN -->
+                        <select id="report-year" onchange="filterReport()" class="bg-gray-700 border border-gray-600 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5">
+                            <option value="2025">2025</option>
+                            <option value="2026">2026</option>
+                            <option value="2027">2027</option>
+                            <option value="2028">2028</option>
+                        </select>
+                        
+                        <button onclick="toggleReportView()" class="text-sm bg-gray-600 hover:bg-gray-500 text-white px-3 py-2 rounded-lg transition">
+                            Kembali
+                        </button>
+                    </div>
                 </div>
                 
                 <div class="overflow-x-auto">
@@ -269,8 +319,11 @@
                             <tr>
                                 <th class="px-4 py-3 rounded-tl-lg">Nama Pegawai</th>
                                 <th class="px-4 py-3">Divisi</th>
-                                <th class="px-4 py-3 text-center">Total Cuti (Hari)</th>
-                                <th class="px-4 py-3 rounded-tr-lg text-right">Detail Tanggal</th>
+                                <th class="px-4 py-3 text-center">Terpakai</th>
+                                <th class="px-4 py-3 text-center">Kuota</th>
+                                <th class="px-4 py-3 text-center">Sisa (Balance)</th>
+                                <th class="px-4 py-3 text-center">Status Tips</th>
+                                <th class="px-4 py-3 rounded-tr-lg text-right">Detail</th>
                             </tr>
                         </thead>
                         <tbody id="report-table-body" class="divide-y divide-gray-700">
@@ -278,8 +331,13 @@
                         </tbody>
                     </table>
                 </div>
-                <div class="mt-4 text-xs text-gray-500 italic">
-                    * Hanya menghitung cuti dengan status 'Approved'.
+                <div class="mt-4 text-xs text-gray-500 italic bg-gray-900/30 p-3 rounded border border-gray-700/50">
+                    <span class="font-bold text-gray-300">Catatan Sistem:</span>
+                    <ul class="list-disc ml-4 mt-1 space-y-1">
+                        <li><strong>Filter Tahunan (Semua Bulan):</strong> Kuota cuti adalah 14 hari.</li>
+                        <li><strong>Filter Bulanan:</strong> Kuota cuti adalah 2 hari.</li>
+                        <li><strong>Balance:</strong> Dihitung berdasarkan hari kerja (Senin-Jumat) yang jatuh pada periode yang dipilih.</li>
+                    </ul>
                 </div>
             </div>
         </div>
@@ -290,12 +348,11 @@
         let currentUser = null;
         let calendar = null;
         let allRequestsData = []; 
-        let clockInterval = null; // Variabel untuk interval jam
-        const SESSION_KEY = 'cuti_app_session'; // Kunci untuk penyimpanan sesi lokal
-        const SESSION_TIMEOUT = 12 * 60 * 60 * 1000; // 12 Jam timeout untuk auto-logout
+        let clockInterval = null; 
+        const SESSION_KEY = 'cuti_app_session'; 
+        const SESSION_TIMEOUT = 12 * 60 * 60 * 1000; 
 
         // --- DATABASE LIBUR INDONESIA (2025-2028) ---
-        // Estimasi tanggal merah, cek SKB 3 Menteri untuk kepastian
         const INDONESIAN_HOLIDAYS = {
             // 2025
             "2025-01-01": "Tahun Baru Masehi",
@@ -376,25 +433,22 @@
         // --- CEK SESI SAAT HALAMAN DIMUAT ---
         document.addEventListener("DOMContentLoaded", () => {
             checkSession();
+            // Set default year selector to current year
+            document.getElementById('report-year').value = new Date().getFullYear();
         });
 
         function checkSession() {
             const savedSession = localStorage.getItem(SESSION_KEY);
             if (savedSession) {
                 try {
-                    // Security Tweak: Decode Base64 (Obfuscation)
-                    // Mencegah data dibaca langsung sebagai plain text
                     const decoded = atob(savedSession);
                     const sessionData = JSON.parse(decoded);
 
-                    // Security Tweak: Cek apakah sesi sudah kadaluarsa (Expired)
                     if (Date.now() > sessionData.expiry) {
                         console.warn("Sesi telah berakhir.");
                         localStorage.removeItem(SESSION_KEY);
-                        return; // Jangan login, biarkan di halaman login
+                        return;
                     }
-
-                    // Jika valid dan belum expired, langsung masuk
                     initializeDashboard(sessionData.user);
                 } catch (e) {
                     console.error("Sesi tidak valid", e);
@@ -410,14 +464,71 @@
             }
         }
 
-        function calculateDays(startStr, endStr) {
+        // --- ADVANCED FEATURE: SMART CALCULATOR ---
+        function calculateWorkingDays(startStr, endStr) {
+            let count = 0;
+            let currentDate = new Date(startStr);
+            const stopDate = new Date(endStr);
+            
+            if (currentDate > stopDate) return 0;
+
+            while (currentDate <= stopDate) {
+                const day = currentDate.getDay(); // 0 = Sunday, 6 = Saturday
+                const dateString = currentDate.toLocaleDateString('en-CA'); // YYYY-MM-DD
+                
+                // Cek apakah Weekend atau Libur Nasional
+                if (day !== 0 && day !== 6 && !INDONESIAN_HOLIDAYS[dateString]) {
+                    count++;
+                }
+                currentDate.setDate(currentDate.getDate() + 1);
+            }
+            return count;
+        }
+
+        // --- NEW: Calculate Working Days INSIDE a specific Period (Month/Year) ---
+        function calculateWorkingDaysInPeriod(reqStartStr, reqEndStr, periodStart, periodEnd) {
+            // Konversi ke object Date
+            const rStart = new Date(reqStartStr);
+            const rEnd = new Date(reqEndStr);
+            
+            // Cari irisan tanggal (Overlap)
+            // Start adalah yang paling akhir antara Request Start dan Period Start
+            const start = rStart > periodStart ? rStart : periodStart;
+            // End adalah yang paling awal antara Request End dan Period End
+            const end = rEnd < periodEnd ? rEnd : periodEnd;
+            
+            // Jika tidak ada overlap (start > end), kembalikan 0
+            if (start > end) return 0;
+            
+            // Hitung hari kerja dalam periode overlap
+            return calculateWorkingDays(start.toISOString().split('T')[0], end.toISOString().split('T')[0]);
+        }
+
+        function updateDurationDisplay() {
+            const start = document.getElementById('start-date').value;
+            const end = document.getElementById('end-date').value;
+            const box = document.getElementById('duration-box');
+            const text = document.getElementById('duration-text');
+
+            if (start && end) {
+                const workingDays = calculateWorkingDays(start, end);
+                const totalDays = calculateSimpleDays(start, end);
+                
+                text.innerText = `${workingDays} Hari Kerja`;
+                if(workingDays < totalDays) {
+                    text.innerHTML += ` <span class="text-xs font-normal text-gray-400">(${totalDays} hari kalender)</span>`;
+                }
+                box.classList.remove('hidden');
+            } else {
+                box.classList.add('hidden');
+            }
+        }
+
+        function calculateSimpleDays(startStr, endStr) {
             const start = new Date(startStr);
             const end = new Date(endStr);
-            // Hitung selisih waktu dalam milidetik
             const diffTime = Math.abs(end - start);
-            // Konversi ke hari ( +1 karena inklusif)
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; 
-            return diffDays;
+            return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; 
         }
 
         function toggleReportView() {
@@ -427,79 +538,65 @@
             const ann = document.getElementById('announcement-section');
             
             if (dash.classList.contains('hidden')) {
-                // Show Dashboard
                 dash.classList.remove('hidden');
-                ann.classList.remove('hidden'); // Show announcement
+                ann.classList.remove('hidden'); 
                 report.classList.add('hidden');
                 btn.classList.remove('bg-gray-600');
                 btn.classList.add('bg-blue-600');
                 btn.innerHTML = `<svg class="w-4 h-4 md:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg><span class="hidden md:inline">Laporan</span>`;
             } else {
-                // Show Report
                 dash.classList.add('hidden');
-                ann.classList.add('hidden'); // Hide announcement to focus on report
+                ann.classList.add('hidden'); 
                 report.classList.remove('hidden');
-                renderReportTable(allRequestsData);
+                // Trigger filter when opening report
+                filterReport();
                 btn.classList.remove('bg-blue-600');
                 btn.classList.add('bg-gray-600');
                 btn.innerHTML = `← Kembali`;
             }
         }
 
+        // --- NEW: Filter Function ---
+        function filterReport() {
+            const monthVal = document.getElementById('report-month').value;
+            const yearVal = document.getElementById('report-year').value;
+            
+            renderReportTable(allRequestsData, monthVal, yearVal);
+        }
+
         function scrollToPending() {
-            // Scroll ke bagian pending list di sidebar (untuk mobile/desktop)
             const pendingList = document.getElementById('manager-controls');
             if(pendingList && !pendingList.classList.contains('hidden')) {
                 pendingList.scrollIntoView({ behavior: 'smooth' });
-                pendingList.classList.add('ring-2', 'ring-yellow-500'); // Highlight effect
+                pendingList.classList.add('ring-2', 'ring-yellow-500');
                 setTimeout(() => pendingList.classList.remove('ring-2', 'ring-yellow-500'), 2000);
             }
         }
 
-        // --- FUNGSI JAM (UTC+7 / WIB) ---
         function startClock() {
             if (clockInterval) clearInterval(clockInterval);
-            
             const update = () => {
                 const el = document.getElementById('clock-display');
                 if (!el) return;
-                
                 const now = new Date();
-                // Opsi untuk Waktu Indonesia Barat (Asia/Jakarta)
                 const options = { 
-                    timeZone: 'Asia/Jakarta', 
-                    weekday: 'long', 
-                    year: 'numeric', 
-                    month: 'long', 
-                    day: 'numeric',
-                    hour: '2-digit', 
-                    minute: '2-digit', 
-                    second: '2-digit', 
-                    hour12: false 
+                    timeZone: 'Asia/Jakarta', weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+                    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false 
                 };
-                
-                // Format: Jumat, 2 Januari 2026 16.27.00
                 let timeString = new Intl.DateTimeFormat('id-ID', options).format(now);
-                
-                // Mengganti titik dengan titik dua agar terlihat seperti jam digital biasa jika browser menggunakan format 16.27.00
                 timeString = timeString.replace(/\./g, ':');
-                
                 el.innerText = timeString + " WIB";
             };
-            
-            update(); // Panggil sekali langsung
-            clockInterval = setInterval(update, 1000); // Update tiap detik
+            update(); 
+            clockInterval = setInterval(update, 1000); 
         }
 
-        // --- FUNGSI API ---
         async function callAPI(payload) {
             if(!API_URL.includes("script.google.com")) {
                 alert("ERROR: Anda belum memasukkan URL Google Script di kode HTML baris 15!");
                 return;
             }
-
             document.getElementById('loading').classList.remove('hidden'); 
-            
             try {
                 const response = await fetch(API_URL, {
                     method: 'POST',
@@ -517,54 +614,35 @@
         }
 
         // --- LOGIKA APLIKASI ---
-
         async function handleLogin() {
             const u = document.getElementById('user-input').value.trim();
             const p = document.getElementById('pass-input').value.trim();
-            
             if(!u || !p) return alert("Username dan Password wajib diisi");
 
             const res = await callAPI({ action: 'login', username: u, password: p });
 
             if (res && res.success) {
-                // Security Tweak: Simpan Sesi dengan Encodng Base64 & Waktu Expired
-                const sessionData = {
-                    user: res,
-                    expiry: Date.now() + SESSION_TIMEOUT
-                };
-                // Encode object ke string Base64 agar tidak terbaca plain text
+                const sessionData = { user: res, expiry: Date.now() + SESSION_TIMEOUT };
                 const encoded = btoa(JSON.stringify(sessionData));
-                
                 localStorage.setItem(SESSION_KEY, encoded);
-
-                // Security Tweak: Langsung bersihkan field password di UI
                 document.getElementById('pass-input').value = "";
-                
                 initializeDashboard(res);
             } else {
                 alert("Login Gagal: Username atau Password salah.");
-                document.getElementById('pass-input').value = ""; // Bersihkan password jika gagal
+                document.getElementById('pass-input').value = ""; 
             }
         }
 
-        // Fungsi inisialisasi dashboard (dipanggil saat login sukses atau cek sesi)
         function initializeDashboard(user) {
             currentUser = user;
-            
-            // Transisi Tampilan
             document.getElementById('login-view').classList.add('hidden');
             document.getElementById('app-view').classList.remove('hidden');
             
-            // Tampilkan Nama Asli (Real Name) jika ada, jika tidak pakai Username
-            // Backend harus mengirim field 'realName'
             const displayName = user.realName || user.username;
             const displayRole = user.role + (user.division ? ` - ${user.division}` : '');
             document.getElementById('welcome-msg').innerText = `Halo, ${displayName} (${displayRole})`;
 
-            // Jalankan Jam
             startClock();
-
-            // Reset Tampilan Menu
             document.getElementById('manager-controls').classList.add('hidden');
             document.getElementById('employee-controls').classList.add('hidden');
             document.getElementById('btn-report').classList.add('hidden'); 
@@ -574,38 +652,27 @@
             if (user.role === 'Manager') {
                 document.getElementById('manager-controls').classList.remove('hidden');
                 document.getElementById('btn-report').classList.remove('hidden'); 
-                document.getElementById('btn-edit-announcement').classList.remove('hidden'); // Show Edit Button
-                document.getElementById('manager-notif').classList.remove('hidden'); // Show Notification Bell
+                document.getElementById('btn-edit-announcement').classList.remove('hidden'); 
+                document.getElementById('manager-notif').classList.remove('hidden'); 
             } else {
                 document.getElementById('employee-controls').classList.remove('hidden');
             }
-            
-            // Load all data
             loadData();
             loadAnnouncement();
         }
 
         function logout() {
             if(confirm("Keluar dari aplikasi?")) {
-                // 1. Hapus Sesi
                 localStorage.removeItem(SESSION_KEY);
                 currentUser = null;
                 if(clockInterval) clearInterval(clockInterval);
-
-                // 2. Reset Tampilan ke Login
                 document.getElementById('app-view').classList.add('hidden');
                 document.getElementById('login-view').classList.remove('hidden');
-                
-                // 3. Bersihkan Form Input
                 document.getElementById('user-input').value = "";
                 document.getElementById('pass-input').value = "";
-                
-                // 4. Reset konten dinamis
                 document.getElementById('welcome-msg').innerText = "";
                 document.getElementById('manager-controls').classList.add('hidden');
                 document.getElementById('employee-controls').classList.add('hidden');
-                
-                // Reset report view if active
                 const dash = document.getElementById('dashboard-content');
                 const report = document.getElementById('report-content');
                 dash.classList.remove('hidden');
@@ -613,19 +680,14 @@
             }
         }
 
-        // --- LOGIKA PENGUMUMAN & NOTIFIKASI ---
-
         async function loadAnnouncement() {
-            // Ambil Announcement dari Server
             const res = await callAPI({ action: 'getAnnouncement' });
             const annSection = document.getElementById('announcement-section');
             const annText = document.getElementById('announcement-text');
-            
             if (res && res.success && res.text) {
                 annText.innerText = res.text;
                 annSection.classList.remove('hidden');
             } else {
-                // Jika kosong, manager tetap melihat (untuk edit), employee hide
                 if(currentUser.role === 'Manager') {
                     annText.innerText = "Belum ada pengumuman aktif. Klik tombol pensil untuk mengedit.";
                     annSection.classList.remove('hidden');
@@ -646,29 +708,23 @@
             const res = await callAPI({ 
                 action: 'updateAnnouncement', 
                 text: newText,
-                username: currentUser.username // Security check di backend
+                username: currentUser.username
             });
-            
             if(res && res.success) {
                 document.getElementById('announcement-modal').classList.add('hidden');
-                loadAnnouncement(); // Reload UI
+                loadAnnouncement(); 
             } else {
                 alert("Gagal menyimpan pengumuman.");
             }
         }
 
         function updateNotificationCount(data) {
-            // Hanya jalankan jika user adalah Manager
             if (currentUser.role !== 'Manager') return;
-
             const pendingCount = data.filter(r => r.status === 'Pending').length;
             const badge = document.getElementById('notif-badge');
-            
             if (pendingCount > 0) {
                 badge.innerText = pendingCount;
                 badge.classList.remove('hidden');
-                
-                // Optional: Update title browser tab
                 document.title = `(${pendingCount}) Sistem Cuti Pegawai`;
             } else {
                 badge.classList.add('hidden');
@@ -676,20 +732,22 @@
             }
         }
 
-        // --- FUNGSI REQUEST, DATA, CALENDAR ---
-
         async function submitRequest() {
             const start = document.getElementById('start-date').value;
             const end = document.getElementById('end-date').value;
-            const reason = document.getElementById('reason').value;
+            const type = document.getElementById('leave-type').value; // Ambil Tipe Cuti
+            const rawReason = document.getElementById('reason').value;
 
             if(!start || !end) return alert("Harap isi tanggal mulai dan selesai.");
+
+            const formattedReason = `[${type}] ${rawReason}`;
 
             const res = await callAPI({
                 action: 'addRequest',
                 username: currentUser.username,
                 division: currentUser.division, 
-                start: start, end: end, reason: reason
+                start: start, end: end, 
+                reason: formattedReason 
             });
 
             if(res && res.success) {
@@ -697,19 +755,19 @@
                 document.getElementById('start-date').value = "";
                 document.getElementById('end-date').value = "";
                 document.getElementById('reason').value = "";
+                document.getElementById('duration-box').classList.add('hidden');
                 loadData();
             }
         }
 
         async function updateRequest(id, status) {
             const text = status === 'Approved' ? 'TERIMA' : 'TOLAK';
-            let adminReason = ""; // Variabel untuk menyimpan alasan penolakan
+            let adminReason = ""; 
             
             if (status === 'Approved') {
                 const req = allRequestsData.find(r => r.id == id);
                 if (req) {
                     const limitCheck = checkLeaveLimit(req.start.split('T')[0], req.end.split('T')[0]);
-                    
                     if (limitCheck.overflow) {
                         const confirmOverflow = confirm(
                             `PERINGATAN: Tanggal ${limitCheck.date} sudah ada ${limitCheck.count} pegawai yang cuti.\n\n` +
@@ -719,12 +777,9 @@
                     }
                 }
             } else {
-                // JIKA REJECT: Minta alasan penolakan
                 adminReason = prompt("Masukkan alasan penolakan (Opsional):");
-                if (adminReason === null) return; // Batalkan jika user klik Cancel
+                if (adminReason === null) return; 
             }
-            
-            // Kirim status beserta alasan (adminReason) ke server
             await callAPI({ action: 'updateStatus', id: id, status: status, adminReason: adminReason });
             loadData();
         }
@@ -732,25 +787,21 @@
         async function loadData() {
             const res = await callAPI({ action: 'getRequests' });
             if (!res || !res.success) return;
-
             allRequestsData = res.data; 
             renderCalendar(res.data);
             renderManagerList(res.data);
             renderEmployeeHistory(res.data);
             renderTodayStatus(res.data); 
-            updateNotificationCount(res.data); // UPDATE NOTIFIKASI
+            updateNotificationCount(res.data); 
             
-            // If report view is active, re-render it too
+            // Check if report view is active, if so update it with defaults
             if (!document.getElementById('report-content').classList.contains('hidden')) {
-                renderReportTable(res.data);
+                filterReport();
             }
         }
 
-        // --- FITUR STATUS HARIAN ---
         function renderTodayStatus(data) {
             const today = new Date().toISOString().split('T')[0];
-            
-            // Filter orang yang sedang cuti hari ini (Approved)
             const onLeaveToday = data.filter(r => {
                 if (r.status !== 'Approved') return false;
                 const dates = getDatesInRange(r.start.split('T')[0], r.end.split('T')[0]);
@@ -762,10 +813,15 @@
 
             const nameListEl = document.getElementById('leave-names');
             if (count > 0) {
-                // UPDATE: Menggunakan Real Name jika ada
                 const names = onLeaveToday.map(r => {
                     const displayName = r.realName || r.username;
-                    return `<div class="mb-1">• ${displayName} ${r.division ? '('+r.division+')' : ''}</div>`;
+                    const typeMatch = r.reason.match(/^\[(.*?)\]/);
+                    const typeLabel = typeMatch ? `<span class="text-xs text-yellow-500 font-bold ml-1">${typeMatch[1]}</span>` : '';
+
+                    return `<div class="mb-1 border-l-2 border-yellow-500 pl-2 ml-1">
+                                <div class="font-bold text-gray-200">${displayName}</div>
+                                <div class="text-[10px] text-gray-500">${r.division || '-'} ${typeLabel}</div>
+                            </div>`;
                 }).join('');
                 nameListEl.innerHTML = names;
                 nameListEl.classList.remove('italic');
@@ -775,43 +831,86 @@
             }
         }
 
-        // --- FITUR REPORT TABLE ---
-        function renderReportTable(data) {
+        // --- UPDATED REPORT TABLE ---
+        function renderReportTable(data, selectedMonth = 'all', selectedYear = new Date().getFullYear()) {
             const tbody = document.getElementById('report-table-body');
             tbody.innerHTML = "";
-
-            // 1. Group data by User
             const userStats = {};
 
+            // 1. Tentukan Periode Filter
+            let periodStart, periodEnd;
+            let quota = 0;
+
+            if (selectedMonth === 'all') {
+                // Setahun Penuh
+                periodStart = new Date(selectedYear, 0, 1);
+                periodEnd = new Date(selectedYear, 11, 31);
+                quota = 14; // Kuota Tahunan
+            } else {
+                // Bulan Tertentu
+                const m = parseInt(selectedMonth);
+                periodStart = new Date(selectedYear, m, 1);
+                // Akhir bulan (tanggal 0 bulan berikutnya = tanggal terakhir bulan ini)
+                periodEnd = new Date(selectedYear, m + 1, 0); 
+                quota = 2; // Kuota Bulanan
+            }
+
             data.forEach(r => {
+                // Hanya hitung yang Approved
                 if (r.status === 'Approved') {
-                    // Key can be username, but we want to display Real Name
                     const key = r.username;
                     if (!userStats[key]) {
                         userStats[key] = {
                             realName: r.realName || r.username,
                             division: r.division || '-',
-                            totalDays: 0,
+                            usedDays: 0,
                             history: []
                         };
                     }
                     
-                    const days = calculateDays(r.start.split('T')[0], r.end.split('T')[0]);
-                    userStats[key].totalDays += days;
-                    userStats[key].history.push(`${r.start.substring(0,10)} s/d ${r.end.substring(0,10)} (${days} hari)`);
+                    // Hitung hari kerja HANYA yang jatuh di periode terpilih
+                    const days = calculateWorkingDaysInPeriod(
+                        r.start.split('T')[0], 
+                        r.end.split('T')[0], 
+                        periodStart, 
+                        periodEnd
+                    );
+
+                    if (days > 0) {
+                        userStats[key].usedDays += days;
+                        // Parse Type
+                        const typeMatch = r.reason.match(/^\[(.*?)\]/);
+                        const type = typeMatch ? typeMatch[1] : 'Umum';
+                        
+                        // Tampilkan history jika relevan dengan periode ini
+                        userStats[key].history.push(`<span class="text-xs bg-gray-700 px-1 rounded">${type}</span> ${r.start.substring(0,10)} - ${r.end.substring(0,10)} (${days}hr di periode ini)`);
+                    }
                 }
             });
 
-            // 2. Render Row
+            // Render
             Object.values(userStats).forEach(stat => {
-                const historyHtml = stat.history.map(h => `<div class="text-xs text-gray-500">${h}</div>`).join('');
+                const historyHtml = stat.history.map(h => `<div class="text-xs text-gray-500 mb-0.5">${h}</div>`).join('');
+                
+                // Hitung Balance
+                const balance = quota - stat.usedDays;
+                
+                // Tentukan Status Tips
+                let statusBadge = "";
+                if (balance >= 0) {
+                    statusBadge = `<span class="bg-green-900/40 text-green-400 border border-green-500/30 text-xs px-2 py-0.5 rounded font-bold">Eligible Tips ✅</span>`;
+                } else {
+                    statusBadge = `<span class="bg-red-900/40 text-red-400 border border-red-500/30 text-xs px-2 py-0.5 rounded font-bold">Over Limit ⚠️</span>`;
+                }
+
                 tbody.innerHTML += `
-                    <tr class="hover:bg-gray-700/50 transition">
+                    <tr class="hover:bg-gray-700/50 transition border-b border-gray-700/50">
                         <td class="px-4 py-3 font-medium text-white">${stat.realName}</td>
-                        <td class="px-4 py-3">${stat.division}</td>
-                        <td class="px-4 py-3 text-center">
-                            <span class="inline-block bg-blue-500/20 text-blue-300 px-2 py-1 rounded font-bold">${stat.totalDays}</span>
-                        </td>
+                        <td class="px-4 py-3 text-gray-400">${stat.division}</td>
+                        <td class="px-4 py-3 text-center text-white">${stat.usedDays}</td>
+                        <td class="px-4 py-3 text-center text-gray-400">${quota}</td>
+                        <td class="px-4 py-3 text-center font-bold ${balance < 0 ? 'text-red-400' : 'text-blue-400'}">${balance}</td>
+                        <td class="px-4 py-3 text-center">${statusBadge}</td>
                         <td class="px-4 py-3 text-right">
                             ${historyHtml}
                         </td>
@@ -820,7 +919,7 @@
             });
 
             if (Object.keys(userStats).length === 0) {
-                tbody.innerHTML = `<tr><td colspan="4" class="text-center py-4 italic">Belum ada cuti yang disetujui.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="7" class="text-center py-8 text-gray-500 italic">Belum ada cuti yang disetujui pada periode ini.</td></tr>`;
             }
         }
 
@@ -838,7 +937,6 @@
         function checkLeaveLimit(startDate, endDate) {
             const dateRange = getDatesInRange(startDate, endDate);
             const approvedRequests = allRequestsData.filter(r => r.status === 'Approved');
-
             for (let date of dateRange) {
                 let count = 0;
                 for (let req of approvedRequests) {
@@ -865,22 +963,15 @@
                     },
                     buttonText: { today: 'Hari Ini', month: 'Bulan', list: 'List' },
                     footerToolbar: isMobile ? { center: 'today' } : false,
-                    
-                    // --- KONFIGURASI HARI LIBUR ---
                     dayCellClassNames: (arg) => {
                         const dateStr = arg.date.toLocaleDateString('en-CA');
-                        if (INDONESIAN_HOLIDAYS[dateStr]) {
-                            return ['fc-day-holiday'];
-                        }
+                        if (INDONESIAN_HOLIDAYS[dateStr]) return ['fc-day-holiday'];
                         return [];
                     },
                     dayCellDidMount: (arg) => {
                         const dateStr = arg.date.toLocaleDateString('en-CA');
-                        if (INDONESIAN_HOLIDAYS[dateStr]) {
-                            arg.el.setAttribute('title', INDONESIAN_HOLIDAYS[dateStr]);
-                        }
+                        if (INDONESIAN_HOLIDAYS[dateStr]) arg.el.setAttribute('title', INDONESIAN_HOLIDAYS[dateStr]);
                     },
-                    
                     eventDidMount: function(info) {
                         if (info.event.extendedProps.description) {
                             info.el.setAttribute('title', "Alasan: " + info.event.extendedProps.description);
@@ -894,24 +985,30 @@
                 .filter(r => r.status !== 'Rejected') 
                 .map(r => {
                     let color = '#f59e0b'; 
-                    let desc = ""; 
+                    let desc = r.reason;
                     
+                    const typeMatch = r.reason.match(/^\[(.*?)\]/);
+                    const type = typeMatch ? typeMatch[1] : 'Umum';
+                    let displayTitle = r.realName || r.username;
+
                     if(r.status === 'Approved') {
-                        color = '#16a34a'; 
-                        desc = r.reason; 
+                        if(type === 'Sakit') color = '#ef4444'; 
+                        else if(type === 'Tahunan') color = '#10b981'; 
+                        else if(type === 'Unpaid') color = '#6366f1'; 
+                        else color = '#3b82f6'; 
+                        
+                        displayTitle = `${displayTitle} (${type})`;
+                    } else {
+                        displayTitle = `${displayTitle} (Pending)`;
                     }
 
-                    const displayName = r.realName || r.username;
-
                     return {
-                        title: `${displayName} (${r.status})`,
+                        title: displayTitle,
                         start: r.start.split('T')[0],
                         end: r.end.split('T')[0],
                         color: color,
                         allDay: true,
-                        extendedProps: {
-                            description: desc
-                        }
+                        extendedProps: { description: desc }
                     };
                 });
             
@@ -934,15 +1031,18 @@
                 const divisionBadge = r.division 
                     ? `<span class="ml-2 text-[10px] bg-blue-500/20 text-blue-300 px-1.5 py-0.5 rounded border border-blue-500/30 uppercase tracking-wide">${r.division}</span>` 
                     : '';
-
                 const displayName = r.realName || r.username;
+                
+                const typeMatch = r.reason.match(/^\[(.*?)\]/);
+                const typeLabel = typeMatch ? `<span class="ml-2 text-[10px] bg-gray-600 text-white px-1.5 py-0.5 rounded uppercase tracking-wide">${typeMatch[1]}</span>` : '';
+                const cleanReason = r.reason.replace(/^\[.*?\]\s*/, ''); 
 
                 list.innerHTML += `
                     <div class="bg-gray-700/50 p-4 border border-gray-600 rounded-lg shadow-sm hover:bg-gray-700 transition">
                         <div class="flex justify-between items-start mb-2">
                             <div class="flex items-center">
                                 <span class="font-bold text-white text-lg">${displayName}</span>
-                                ${divisionBadge}
+                                ${divisionBadge} ${typeLabel}
                             </div>
                             <span class="text-xs bg-yellow-500/20 text-yellow-300 border border-yellow-500/30 px-2 py-0.5 rounded-full font-medium">Pending</span>
                         </div>
@@ -950,7 +1050,7 @@
                             📅 ${r.start.substring(0,10)} <span class="mx-1">➞</span> ${r.end.substring(0,10)}
                         </p>
                         <div class="text-sm text-gray-300 mb-4 bg-gray-800 p-2.5 rounded border border-gray-600 italic">
-                            "${r.reason}"
+                            "${cleanReason}"
                         </div>
                         <div class="grid grid-cols-2 gap-3">
                             <button onclick="updateRequest(${r.id}, 'Approved')" class="bg-green-600 hover:bg-green-500 text-white px-3 py-2 rounded-lg text-xs font-bold transition shadow-lg shadow-green-900/20 flex items-center justify-center">
@@ -991,13 +1091,20 @@
                     `;
                 }
 
+                const typeMatch = r.reason.match(/^\[(.*?)\]/);
+                const typeLabel = typeMatch ? `<span class="text-[10px] bg-gray-600 text-white px-1.5 py-0.5 rounded uppercase mr-2">${typeMatch[1]}</span>` : '';
+                const cleanReason = r.reason.replace(/^\[.*?\]\s*/, '');
+
                 list.innerHTML += `
                     <div class="bg-gray-700/30 p-3 border border-gray-600 rounded-lg">
                         <div class="flex justify-between items-center mb-1">
                             <span class="text-xs text-gray-400">${r.start.substring(0,10)}</span>
                             <span class="text-[10px] px-2 py-0.5 rounded-full border ${badgeClass} font-medium uppercase">${r.status}</span>
                         </div>
-                        <p class="text-sm font-semibold text-gray-200">"${r.reason}"</p>
+                        <div class="flex items-center mb-1 mt-1">
+                            ${typeLabel}
+                        </div>
+                        <p class="text-sm font-semibold text-gray-200">"${cleanReason}"</p>
                         ${rejectNote}
                     </div>
                 `;
