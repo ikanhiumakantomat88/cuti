@@ -69,11 +69,17 @@
         const API_URL = "https://script.google.com/macros/s/AKfycbxm6No8lbev3JjLgWgaEEcE_FPM6vUXH8VE4ZxVlJK8cDrjdTLCCF4afeX6feeiOZOeTw/exec"; 
     </script>
 
-    <!-- LOADING OVERLAY (Muncul saat proses data) -->
-    <div id="loading" class="hidden fixed inset-0 bg-black bg-opacity-80 z-50 flex items-center justify-center backdrop-blur-sm">
-        <div class="bg-gray-800 p-6 rounded-xl shadow-2xl flex flex-col items-center border border-gray-700">
-            <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500 mb-3"></div>
-            <span class="text-sm font-semibold text-blue-400">Memproses Data...</span>
+    <!-- LOADING OVERLAY (Modern Percentage) -->
+    <div id="loading" class="hidden fixed inset-0 bg-gray-900/90 z-50 flex flex-col items-center justify-center backdrop-blur-sm transition-all duration-300">
+        <div class="w-72 bg-gray-800/80 p-6 rounded-2xl border border-gray-700 shadow-2xl">
+            <div class="flex justify-between mb-2 items-end">
+                <span class="text-sm font-semibold text-blue-400 uppercase tracking-wider">Memproses</span>
+                <span id="loading-percent" class="text-2xl font-bold text-white font-mono">0%</span>
+            </div>
+            <div class="w-full bg-gray-700 rounded-full h-3 overflow-hidden shadow-inner border border-gray-600">
+                <div id="loading-bar" class="bg-gradient-to-r from-blue-600 via-cyan-500 to-blue-400 h-full rounded-full transition-all duration-300 ease-out shadow-[0_0_10px_rgba(59,130,246,0.5)]" style="width: 0%"></div>
+            </div>
+            <p class="text-xs text-gray-500 mt-3 text-center italic animate-pulse">Mohon tunggu sebentar...</p>
         </div>
     </div>
 
@@ -224,7 +230,7 @@
                             
                             <!-- NEW: Duration Calculation Display -->
                             <div id="duration-box" class="hidden bg-blue-500/10 border border-blue-500/30 rounded-lg p-3">
-                                <p class="text-xs text-blue-300">Total Hari Kerja (Tanpa Weekend/Libur):</p>
+                                <p class="text-xs text-blue-300">Total Hari (Termasuk Weekend/Libur):</p>
                                 <p id="duration-text" class="text-lg font-bold text-white">0 Hari</p>
                             </div>
 
@@ -334,7 +340,7 @@
                     <ul class="list-disc ml-4 mt-1 space-y-1">
                         <li><strong>Filter Tahunan (Semua Bulan):</strong> Kuota cuti adalah 14 hari.</li>
                         <li><strong>Filter Bulanan:</strong> Kuota cuti adalah 2 hari.</li>
-                        <li><strong>Balance:</strong> Dihitung berdasarkan hari kerja (Senin-Jumat) yang jatuh pada periode yang dipilih.</li>
+                        <li><strong>Balance:</strong> Dihitung berdasarkan total hari kalender (termasuk weekend & libur) yang jatuh pada periode yang dipilih.</li>
                     </ul>
                 </div>
             </div>
@@ -471,13 +477,9 @@
             if (currentDate > stopDate) return 0;
 
             while (currentDate <= stopDate) {
-                const day = currentDate.getDay(); // 0 = Sunday, 6 = Saturday
-                const dateString = currentDate.toLocaleDateString('en-CA'); // YYYY-MM-DD
-                
-                // Cek apakah Weekend atau Libur Nasional
-                if (day !== 0 && day !== 6 && !INDONESIAN_HOLIDAYS[dateString]) {
-                    count++;
-                }
+                // MODIFIED: No longer skipping weekend/holiday
+                // Just count everything.
+                count++;
                 currentDate.setDate(currentDate.getDate() + 1);
             }
             return count;
@@ -509,13 +511,9 @@
             const text = document.getElementById('duration-text');
 
             if (start && end) {
-                const workingDays = calculateWorkingDays(start, end);
-                const totalDays = calculateSimpleDays(start, end);
+                const totalDays = calculateWorkingDays(start, end);
                 
-                text.innerText = `${workingDays} Hari Kerja`;
-                if(workingDays < totalDays) {
-                    text.innerHTML += ` <span class="text-xs font-normal text-gray-400">(${totalDays} hari kalender)</span>`;
-                }
+                text.innerText = `${totalDays} Hari`;
                 box.classList.remove('hidden');
             } else {
                 box.classList.add('hidden');
@@ -589,22 +587,76 @@
             clockInterval = setInterval(update, 1000); 
         }
 
+        // --- LOADING ANIMATION CONTROLLER ---
+        let loadingInterval;
+        
+        function showLoading() {
+            const el = document.getElementById('loading');
+            const bar = document.getElementById('loading-bar');
+            const txt = document.getElementById('loading-percent');
+            
+            el.classList.remove('hidden');
+            let progress = 0;
+            
+            // Reset state
+            bar.style.width = '0%';
+            txt.innerText = '0%';
+            
+            if(loadingInterval) clearInterval(loadingInterval);
+            
+            loadingInterval = setInterval(() => {
+                // Simulate progress curve: Fast at start, slows down near 90%
+                if (progress < 60) {
+                    progress += Math.random() * 4; 
+                } else if (progress < 85) {
+                    progress += Math.random() * 2;
+                } else if (progress < 95) {
+                    progress += 0.5;
+                }
+                
+                // Cap at 95% until real response comes
+                if (progress > 95) progress = 95;
+                
+                bar.style.width = `${progress}%`;
+                txt.innerText = `${Math.round(progress)}%`;
+            }, 200);
+        }
+
+        function hideLoading() {
+            if(loadingInterval) clearInterval(loadingInterval);
+            
+            const el = document.getElementById('loading');
+            const bar = document.getElementById('loading-bar');
+            const txt = document.getElementById('loading-percent');
+            
+            // Complete the animation
+            bar.style.width = '100%';
+            txt.innerText = '100%';
+            
+            // Hide after short delay
+            setTimeout(() => {
+                el.classList.add('hidden');
+            }, 500);
+        }
+
         async function callAPI(payload) {
             if(!API_URL.includes("script.google.com")) {
                 alert("ERROR: Anda belum memasukkan URL Google Script di kode HTML baris 15!");
                 return;
             }
-            document.getElementById('loading').classList.remove('hidden'); 
+            
+            showLoading(); // Start animation
+            
             try {
                 const response = await fetch(API_URL, {
                     method: 'POST',
                     body: JSON.stringify(payload)
                 });
                 const result = await response.json();
-                document.getElementById('loading').classList.add('hidden'); 
+                hideLoading(); // Finish animation
                 return result;
             } catch (error) {
-                document.getElementById('loading').classList.add('hidden');
+                hideLoading(); // Finish even on error so UI doesn't hang
                 alert("Gagal terhubung ke server. Cek koneksi internet.");
                 console.error(error);
                 return null;
