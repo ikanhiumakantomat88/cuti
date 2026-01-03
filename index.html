@@ -418,6 +418,16 @@
         const SESSION_KEY = 'cuti_app_session'; 
         const SESSION_TIMEOUT = 12 * 60 * 60 * 1000; 
 
+        // --- NEW HELPER: FORMAT DATE STRING (FIX FOR UTC ISSUE) ---
+        function formatDateString(isoString) {
+            if (!isoString) return "";
+            // Parse the ISO string (which might be treated as UTC by new Date)
+            const date = new Date(isoString);
+            // Force the output to be in Jakarta timezone (WIB) with YYYY-MM-DD format
+            // 'en-CA' outputs YYYY-MM-DD
+            return date.toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
+        }
+
         // --- DATABASE LIBUR INDONESIA (2025-2028) ---
         const INDONESIAN_HOLIDAYS = {
             // 2026
@@ -545,7 +555,10 @@
             if (start > end) return 0;
             
             // Hitung hari kerja dalam periode overlap
-            return calculateWorkingDays(start.toISOString().split('T')[0], end.toISOString().split('T')[0]);
+            // Use local date strings to prevent offset issues
+            const sStr = start.toLocaleDateString('en-CA', {timeZone: 'Asia/Jakarta'});
+            const eStr = end.toLocaleDateString('en-CA', {timeZone: 'Asia/Jakarta'});
+            return calculateWorkingDays(sStr, eStr);
         }
 
         function updateDurationDisplay() {
@@ -867,15 +880,19 @@
             const type = typeMatch ? typeMatch[1] : 'Umum';
             const cleanReason = req.reason.replace(/^\[.*?\]\s*/, '');
             
+            // Fix Date Strings using new helper
+            const startDateStr = formatDateString(req.start);
+            const endDateStr = formatDateString(req.end);
+
             // Calculate Days
-            const days = calculateWorkingDays(req.start.split('T')[0], req.end.split('T')[0]);
+            const days = calculateWorkingDays(startDateStr, endDateStr);
 
             // Populate Modal
             document.getElementById('modal-name').innerText = req.realName || req.username;
             document.getElementById('modal-div').innerText = req.division || '-';
             document.getElementById('modal-type').innerText = type;
             document.getElementById('modal-days').innerText = `${days} Hari`;
-            document.getElementById('modal-date').innerText = `${req.start.substring(0,10)} s/d ${req.end.substring(0,10)}`;
+            document.getElementById('modal-date').innerText = `${startDateStr} s/d ${endDateStr}`;
             document.getElementById('modal-reason').innerText = `"${cleanReason}"`;
             
             // Reset input
@@ -901,10 +918,10 @@
                 return;
             }
 
-            // Jika Approve tapi ada overflow quota, tanya dulu (opsional logic, di sini simplified)
+            // Jika Approve tapi ada overflow quota
             if (status === 'Approved') {
                 const req = allRequestsData.find(r => r.id == selectedRequestId);
-                const limitCheck = checkLeaveLimit(req.start.split('T')[0], req.end.split('T')[0]);
+                const limitCheck = checkLeaveLimit(formatDateString(req.start), formatDateString(req.end));
                 if (limitCheck.overflow) {
                     const confirmOverflow = confirm(
                         `PERINGATAN: Tanggal ${limitCheck.date} sudah ada ${limitCheck.count} pegawai yang cuti.\n\n` +
@@ -930,8 +947,6 @@
             }
         }
 
-        // (Fungsi lama updateRequest digantikan oleh processRequestAction via modal)
-
         async function loadData() {
             const res = await callAPI({ action: 'getRequests' });
             if (!res || !res.success) return;
@@ -952,7 +967,8 @@
             const today = new Date().toISOString().split('T')[0];
             const onLeaveToday = data.filter(r => {
                 if (r.status !== 'Approved') return false;
-                const dates = getDatesInRange(r.start.split('T')[0], r.end.split('T')[0]);
+                // Use helper to ensure we compare local Jakarta date
+                const dates = getDatesInRange(formatDateString(r.start), formatDateString(r.end));
                 return dates.includes(today);
             });
 
@@ -1017,9 +1033,10 @@
                     }
                     
                     // Hitung hari kerja HANYA yang jatuh di periode terpilih
+                    // FIX: Use formatDateString to prevent UTC offset errors in calculation
                     const days = calculateWorkingDaysInPeriod(
-                        r.start.split('T')[0], 
-                        r.end.split('T')[0], 
+                        formatDateString(r.start), 
+                        formatDateString(r.end), 
                         periodStart, 
                         periodEnd
                     );
@@ -1031,7 +1048,7 @@
                         const type = typeMatch ? typeMatch[1] : 'Umum';
                         
                         // Tampilkan history jika relevan dengan periode ini
-                        userStats[key].history.push(`<span class="text-xs bg-gray-700 px-1 rounded">${type}</span> ${r.start.substring(0,10)} - ${r.end.substring(0,10)} (${days}hr di periode ini)`);
+                        userStats[key].history.push(`<span class="text-xs bg-gray-700 px-1 rounded">${type}</span> ${formatDateString(r.start)} - ${formatDateString(r.end)} (${days}hr di periode ini)`);
                     }
                 }
             });
@@ -1088,7 +1105,8 @@
             for (let date of dateRange) {
                 let count = 0;
                 for (let req of approvedRequests) {
-                    const reqRange = getDatesInRange(req.start.split('T')[0], req.end.split('T')[0]);
+                    // Fix: Ensure comparison uses corrected dates
+                    const reqRange = getDatesInRange(formatDateString(req.start), formatDateString(req.end));
                     if (reqRange.includes(date)) count++;
                 }
                 if (count >= 2) return { overflow: true, date: date, count: count };
@@ -1149,10 +1167,11 @@
                         displayTitle = `${displayTitle} (Pending)`;
                     }
 
+                    // Fix: Use helper to format date strings correctly
                     return {
                         title: displayTitle,
-                        start: r.start.split('T')[0],
-                        end: r.end.split('T')[0],
+                        start: formatDateString(r.start),
+                        end: formatDateString(r.end),
                         color: color,
                         allDay: true,
                         extendedProps: { description: desc }
@@ -1184,6 +1203,10 @@
                 const typeLabel = typeMatch ? `<span class="ml-2 text-[10px] bg-gray-600 text-white px-1.5 py-0.5 rounded uppercase tracking-wide">${typeMatch[1]}</span>` : '';
                 const cleanReason = r.reason.replace(/^\[.*?\]\s*/, ''); 
 
+                // FIX: Use formatDateString here
+                const sDate = formatDateString(r.start);
+                const eDate = formatDateString(r.end);
+
                 list.innerHTML += `
                     <div class="bg-gray-700/50 p-4 border border-gray-600 rounded-lg shadow-sm hover:bg-gray-700 transition">
                         <div class="flex justify-between items-start mb-2">
@@ -1194,7 +1217,7 @@
                             <span class="text-xs bg-yellow-500/20 text-yellow-300 border border-yellow-500/30 px-2 py-0.5 rounded-full font-medium">Pending</span>
                         </div>
                         <p class="text-xs text-gray-400 mb-1 flex items-center">
-                            📅 ${r.start.substring(0,10)} <span class="mx-1">➞</span> ${r.end.substring(0,10)}
+                            📅 ${sDate} <span class="mx-1">➞</span> ${eDate}
                         </p>
                         <div class="text-sm text-gray-300 mb-4 bg-gray-800 p-2.5 rounded border border-gray-600 italic">
                             "${cleanReason}"
@@ -1239,10 +1262,13 @@
                 const typeLabel = typeMatch ? `<span class="text-[10px] bg-gray-600 text-white px-1.5 py-0.5 rounded uppercase mr-2">${typeMatch[1]}</span>` : '';
                 const cleanReason = r.reason.replace(/^\[.*?\]\s*/, '');
 
+                // FIX: Use formatDateString
+                const sDate = formatDateString(r.start);
+
                 list.innerHTML += `
                     <div class="bg-gray-700/30 p-3 border border-gray-600 rounded-lg">
                         <div class="flex justify-between items-center mb-1">
-                            <span class="text-xs text-gray-400">${r.start.substring(0,10)}</span>
+                            <span class="text-xs text-gray-400">${sDate}</span>
                             <span class="text-[10px] px-2 py-0.5 rounded-full border ${badgeClass} font-medium uppercase">${r.status}</span>
                         </div>
                         <div class="flex items-center mb-1 mt-1">
